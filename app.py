@@ -4,15 +4,20 @@ from database import Database
 
 app = Flask(__name__)
 
-client = genai.Client(api_key="AIzaSyDSYTUMx7H479Cx4qXk_X45sT70hKmCUkw")
+client = genai.Client(api_key="AIzaSyC7O9RS1ABidRSjUbdux9LRs1OGm9KVK1s")
 
 database = Database()
 conversation_state = {}
 
 BOT_GREETING = "hello, how can i help you today?"
 
-# -------- INTENT DETECTION --------
+
 def detect_intent(message):
+
+    message_lower = message.lower()
+
+    if "complaint" in message_lower or "problem" in message_lower or "issue" in message_lower or "not working" in message_lower or "connection" in message_lower:
+        return "complaint"
 
     prompt = f"""
 Classify the user intent into one word only from:
@@ -26,19 +31,21 @@ Message: {message}
             model="gemini-2.0-flash",
             contents=prompt
         )
+
         return response.text.strip().lower()
+
     except:
         return "unknown"
 
 
-# -------- MAIN LOGIC --------
+
 def process_message(user_id, text):
 
     text_lower = text.lower().strip()
 
-    # -------- IGNORE BOT'S OWN GREETING --------
+   
     if BOT_GREETING in text_lower:
-        return ""   # ignore if mic captured bot voice
+        return ""   
 
     intent = detect_intent(text)
 
@@ -56,12 +63,11 @@ def process_message(user_id, text):
 
     database.save_conversation(text, intent, flow)
 
-    # -------- GREETING (ONLY ONCE) --------
     if not state["greeted"]:
         state["greeted"] = True
         return "Hello, how can I help you today?"
 
-    # -------- APPOINTMENT --------
+    
     if intent == "appointment" or flow == "appointment":
 
         if flow != "appointment":
@@ -88,7 +94,7 @@ def process_message(user_id, text):
             }
             return "Your appointment has been booked successfully."
 
-    # -------- COMPLAINT --------
+   
     if intent == "complaint" or flow == "complaint":
 
         if flow != "complaint":
@@ -114,7 +120,7 @@ def process_message(user_id, text):
 
             return f"Your complaint has been registered. Ticket ID {ticket}."
 
-    # -------- DEFAULT RESPONSE --------
+    
     return """I am Nexora AI assistant designed for:
 Public service requests
 Customer support
