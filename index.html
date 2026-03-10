@@ -1,0 +1,60 @@
+<!DOCTYPE html><html><head><title>NEXORA</title>
+<link rel="stylesheet" href="/static/style.css"></head><body><h1>NEXORA</h1><button onclick="startTalking()">Start Talking</button>
+
+<div id="conversation"></div><script>
+
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.lang="en-US";
+recognition.continuous=false;
+
+function speak(text){
+
+const speech=new SpeechSynthesisUtterance(text);
+speech.lang="en-US";
+
+speechSynthesis.speak(speech);
+
+}
+
+function startTalking(){
+
+recognition.start();
+
+}
+
+recognition.onresult=function(event){
+
+let userText=event.results[0][0].transcript;
+
+document.getElementById("conversation").innerHTML += "<br>You: " + userText;
+
+fetch("/chat",{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({user_id:"user1",message:userText})
+
+})
+.then(res=>res.json())
+.then(data=>{
+
+let reply=data.response;
+
+document.getElementById("conversation").innerHTML += "<br>Nexora: " + reply;
+
+speak(reply);
+
+// mic restart after bot finishes speaking
+setTimeout(()=>{
+recognition.start();
+},2000);
+
+});
+
+}
+
+recognition.onerror=function(event){
+console.log(event.error);
+};
+
+</script></body></html>
