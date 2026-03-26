@@ -1,60 +1,180 @@
-<!DOCTYPE html><html><head><title>NEXORA</title>
-<link rel="stylesheet" href="/static/style.css"></head><body><h1>NEXORA</h1><button onclick="startTalking()">Start Talking</button>
+<!doctype html>
+<html>
+  <head>
+    <title>NEXORA</title>
 
-<div id="conversation"></div><script>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
 
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-recognition.lang="en-US";
-recognition.continuous=false;
+  <body>
+    <img src="{{ url_for('static', filename='logo.png') }}" class="logo" />
 
-function speak(text){
+    <button onclick="startTalking()">Start Talking</button>
 
-const speech=new SpeechSynthesisUtterance(text);
-speech.lang="en-US";
+    <div id="conversation"></div>
 
-speechSynthesis.speak(speech);
+    <script>
+      const recognition = new (
+        window.SpeechRecognition || window.webkitSpeechRecognition
+      )();
+      recognition.lang = "en-US";
+      recognition.continuous = false;
 
-}
+      function detectLang(text) {
+        text = text.toLowerCase();
 
-function startTalking(){
+        if (/[ऀ-ॿ]/.test(text)) return "hi";
 
-recognition.start();
+        const hindiWords = [
+          "mera", "meri", "nahi", "hai", "kaam",
+          "kya", "kyun", "subah", "haan", "theek"
+        ];
 
-}
+        if (hindiWords.some(word => text.includes(word))) {
+          return "hinglish";
+        }
 
-recognition.onresult=function(event){
+        return "en";
+      }
 
-let userText=event.results[0][0].transcript;
+      function speak(text, lang) {
+        recognition.stop();
 
-document.getElementById("conversation").innerHTML += "<br>You: " + userText;
+        const speech = new SpeechSynthesisUtterance(text);
+        speech.lang = lang === "hi" ? "hi-IN" : "en-US";
 
-fetch("/chat",{
+        speech.onend = () => {
+          setTimeout(() => {
+            recognition.start();
+          }, 500);
+        };
 
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({user_id:"user1",message:userText})
+        speechSynthesis.speak(speech);
+      }
 
-})
-.then(res=>res.json())
-.then(data=>{
+      function startTalking() {
+        recognition.start();
+      }
 
-let reply=data.response;
+      recognition.onresult = function (event) {
+        let userText = event.results[0][0].transcript;
 
-document.getElementById("conversation").innerHTML += "<br>Nexora: " + reply;
+        let lang = detectLang(userText);
 
-speak(reply);
+        document.getElementById("conversation").innerHTML +=
+          "<br>You: " + userText;
 
-// mic restart after bot finishes speaking
-setTimeout(()=>{
-recognition.start();
-},2000);
+        fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: "user1",
+            message: userText,
+            lang: lang,
+          }),
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error("Server error");
+            return res.json();
+          })
+          .then((data) => {
+            let reply = data.reply || "Sorry, no response.";
 
-});
+            document.getElementById("conversation").innerHTML +=
+              "<br>Nexora: " + reply;
 
-}
+            speak(reply, lang);
 
-recognition.onerror=function(event){
-console.log(event.error);
-};
+            // 🔥 UPDATED CALL TRIGGER (ALL CASES EXCEPT SURVEY)
+            if (data.call === true) {
+              setTimeout(() => {
+                showIncomingCall(lang, data.call_type);
+              }, 20000); // ✅ 20 sec delay
+            }
 
-</script></body></html>
+            if (reply.toLowerCase().includes("human agent")) {
+              setTimeout(() => {
+                document.getElementById("conversation").innerHTML +=
+                  "<br>Human Agent: Hello, I’m here to assist you further.";
+
+                speak("Hello, I am here to assist you further", "en");
+              }, 2000);
+            }
+          })
+          .catch((err) => {
+            console.log(err);
+            document.getElementById("conversation").innerHTML +=
+              "<br>Nexora: Server issue, try again.";
+          });
+      };
+
+      recognition.onerror = function (event) {
+        console.log(event.error);
+      };
+
+      // 📞 CALL POPUP
+      function showIncomingCall(lang, type) {
+        let popup = document.createElement("div");
+        popup.classList.add("call-popup");
+
+        popup.innerHTML = `
+          <div class="call-box">
+            <h2>📞 Nexora is calling you...</h2>
+            <button class="accept-btn" onclick="acceptCall(this, '${type}')">Accept</button>
+            <button class="reject-btn" onclick="rejectCall(this)">Reject</button>
+          </div>
+        `;
+
+        document.body.appendChild(popup);
+
+        let audio = new Audio("/static/ringtone.mp3");
+        audio.loop = true;
+        audio.play();
+        window.currentAudio = audio;
+      }
+
+      function acceptCall(btn, type) {
+        let popup = btn.closest(".call-popup");
+        if (window.currentAudio) {
+          window.currentAudio.pause();
+          window.currentAudio.currentTime = 0;
+        }
+
+        let message = "";
+
+        // ✅ UPDATED DOMAIN-WISE CALL MESSAGES
+        if (type === "complaint") {
+          message = "Your issue has been resolved";
+        } 
+        else if (type === "appointment") {
+          message = "Reminder: You have an appointment tomorrow";
+        } 
+        else if (type === "payment") {
+          message = "Your payment issue has been resolved";
+        }
+        else if (type === "lead") {
+          message = "Our team will contact you soon";
+        }
+        else {
+          message = "Done";
+        }
+
+        speechSynthesis.speak(new SpeechSynthesisUtterance(message));
+
+        popup.remove();
+      }
+
+      function rejectCall(btn) {
+        let popup = btn.closest(".call-popup");
+        if (window.currentAudio) {
+          window.currentAudio.pause();
+          window.currentAudio.currentTime = 0;
+        }
+        popup.remove();
+      }
+    </script>
+  </body>
+</html>
