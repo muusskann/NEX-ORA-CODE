@@ -1,20 +1,115 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
+  <head>
+    <title>Nexora Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='dashboard.css') }}" 
+      /> 
+  </head>
 
-<head>
+  <body class="dashboard">
 
-<title>Nexora Dashboard</title>
+    <div class="header">
+      <img src="/static/logo.png" width="150" />
+      <h1>COMMAND CENTER</h1>
+    </div>
 
-</head>
+    <!-- CARDS -->
 
-<body>
+    <div class="cards">
+      <div class="card">
+        <h2>Conversations</h2>
+        <p>{{data.conversations}}</p>
+      </div>
 
-<h1>Nexora Analytics Dashboard</h1>
+      <div class="card">
+        <h2>Complaints</h2>
+        <p>{{data.complaints}}</p>
+      </div>
 
-<p>Total Conversations: {{data.conversations}}</p>
+      <div class="card">
+        <h2>Tickets</h2>
+        <p>{{data.tickets}}</p>
+      </div>
 
-<p>Total Tickets: {{data.tickets}}</p>
+      <div class="card">
+        <h2>Escalations</h2>
+        <p>{{data.escalations}}</p>
+      </div>
+    </div>
 
-</body>
+    <hr />
 
+    <!-- GRAPH -->
+    <h2>Intent Analytics</h2>
+    <canvas id="myChart"></canvas>
+
+    <hr />
+
+    <!-- CONVERSATIONS -->
+    <h2>Conversations</h2>
+
+    {% for conv in data.grouped_conversations %}
+    <div class="conversation-box">
+      
+      <p><b>Flow:</b> {{conv.flow if conv.flow else "general"}}</p>
+
+      <p id="short{{loop.index0}}">
+        {{conv.messages[-1]}}
+      </p>
+
+      <div id="full{{loop.index0}}" style="display:none;">
+        {% for msg in conv.messages %}
+          <p>{{msg}}</p>
+        {% endfor %}
+      </div>
+
+      <button onclick="toggle({{ loop.index0 }})">Expand</button>
+    </div>
+    {% endfor %}
+    
+        <!-- CHART -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+      let labels = [];
+      let values = [];
+
+      {% for item in data.graph_data %}
+      labels.push("{{item[0]}}");
+      values.push({{item[1]}});
+      {% endfor %}
+
+      new Chart(document.getElementById("myChart"), {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Conversations by Intent",
+              data: values,
+            },
+          ],
+        },
+      });
+
+
+      function toggle(i){
+        let short = document.getElementById("short"+i);
+        let full = document.getElementById("full"+i);
+
+        if(full.style.display === "none"){
+          full.style.display = "block";
+          short.style.display = "none";
+        } else {
+          full.style.display = "none";
+          short.style.display = "block";
+        }
+      }
+    
+
+    </script>
+
+  </body>
 </html>
