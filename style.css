@@ -1,41 +1,98 @@
-body{
-
-background:#111;
-color:white;
-text-align:center;
-font-family:Arial;
-padding-top:150px;
-
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #0f1117;
+    margin: 0;
 }
 
-h1{
-
-font-size:70px;
-letter-spacing:8px;
-
+.logo {
+    width: 280px;
+    margin-bottom: 30px;
 }
 
-button{
-
-margin-top:30px;
-padding:15px 35px;
-font-size:18px;
-background:#5bc0de;
-border:none;
-border-radius:6px;
-cursor:pointer;
-
+h1 {
+    font-size: 70px;
+    letter-spacing: 8px;
 }
 
-button:hover{
-
-background:#4aa7c7;
-
+button {
+    margin-top: 10px;
+    padding: 12px 30px;
+    font-size: 16px;
+    background: #5bc0de;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: white;
+    transition: 0.3s;
 }
 
-#conversation{
+button:hover {
+    background: #4aa7c7;
+}
 
-margin-top:40px;
-font-size:18px;
+#conversation {
+    margin-top: 40px;
+    font-size: 18px;
+    text-align: center;
+    max-width: 600px;
+    color: white;
+}
 
+/* 📞 CALL POPUP OVERLAY */
+.call-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+/* 📦 CALL BOX */
+.call-box {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    width: 280px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* ✅ ACCEPT BUTTON */
+.accept-btn {
+    background: green;
+    color: white;
+    padding: 10px 20px;
+    margin: 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* ❌ REJECT BUTTON */
+.reject-btn {
+    background: red;
+    color: white;
+    padding: 10px 20px;
+    margin: 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* 🎯 HOVER EFFECT */
+.accept-btn:hover {
+    background: darkgreen;
+}
+
+.reject-btn:hover {
+    background: darkred;
 }
