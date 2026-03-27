@@ -129,13 +129,8 @@ class Database:
             """
         SELECT user_id, user_text, flow
         FROM conversations
-        WHERE id IN (
-            SELECT MAX(id)
-            FROM conversations
-            GROUP BY user_id
-        )
         ORDER BY id DESC
-        LIMIT 10
+        LIMIT 50
         """
         )
         rows = cur.fetchall()
