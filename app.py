@@ -120,14 +120,13 @@ def process_message(user_id, text):
             "नमस्ते, मैं आपकी कैसे मदद कर सकता हूँ?",
             "Namaste, main aapki kaise madad kar sakta hoon?",
         )
-        
+
     intent = detect_intent(text)
 
     if user_id not in conversation_state:
         flow_val = None
     else:
         flow_val = conversation_state[user_id]["flow"]
-   
 
     # ✅ PAYMENT FIX
     if intent == "payment":
@@ -148,9 +147,9 @@ def process_message(user_id, text):
         state["flow"] = intent
         state["step"] = 0
         state["data"] = {}
-        
-    flow_val=state["flow"]
-    db.save_conversation(user_id,"You: " + text, intent, flow_val)
+
+    flow_val = state["flow"]
+    db.save_conversation(user_id, "You: " + text, intent, flow_val)
 
     flow = state["flow"]
     step = state["step"]
@@ -254,7 +253,7 @@ def process_message(user_id, text):
                         ),
                         "call": True,
                         "call_type": "complaint",
-                        "flow": "complaint",    
+                        "flow": "complaint",
                     }
 
                 except Exception as e:
@@ -294,7 +293,7 @@ def process_message(user_id, text):
                 ),
                 "call": True,
                 "call_type": "appointment",
-                "flow": "appointment",   
+                "flow": "appointment",
             }
 
     # 📊 SURVEY (NO CALL)
@@ -400,22 +399,32 @@ def dashboard():
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json
+    message = data["message"].lower()
 
-    if "user_id" not in session:
+    # ✅ Fix indentation + logic
+    if (
+        "user_id" not in session
+        or message in ["hi", "hello", "start"]
+        or conversation_state.get(session.get("user_id"), {}).get("flow") is None
+    ):
         session["user_id"] = "user_" + str(random.randint(1000, 9999))
 
     user_id = session["user_id"]
 
     reply = process_message(user_id, data["message"])
-    reply_text = reply if isinstance(reply, str) else reply["reply"]
+
+    if isinstance(reply, dict):
+        reply_text_val = reply["reply"]
+    else:
+        reply_text_val = reply
 
     if isinstance(reply, dict) and "flow" in reply:
         flow_val = reply["flow"]
     else:
         flow_val = conversation_state.get(user_id, {}).get("flow")
 
-    db.save_conversation(user_id, "Nexora: " + reply_text, "bot", flow_val)
-    
+    db.save_conversation(user_id, "Nexora: " + reply_text_val, "bot", flow_val)
+
     return jsonify(reply if isinstance(reply, dict) else {"reply": reply})
 
 
