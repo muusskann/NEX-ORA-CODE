@@ -2,7 +2,8 @@ from flask import Flask, request, jsonify, render_template, session
 import requests
 import random
 import re
-
+from langdetect import detect
+from deep_translator import GoogleTranslator
 from database import Database
 
 db = Database()
@@ -10,6 +11,26 @@ db = Database()
 app = Flask(__name__)
 app.secret_key = "nexora_secret"
 conversation_state = {}
+
+def safe_detect(text):
+    try:
+        return detect(text)
+    except:
+        return "en"
+
+
+def translate_to_en(text):
+    try:
+        return GoogleTranslator(source="auto", target="en").translate(text)
+    except:
+        return text
+
+
+def translate_back(text, lang):
+    try:
+        return GoogleTranslator(source="en", target=lang).translate(text)
+    except:
+        return text
 
 
 def generate_ticket():
@@ -38,14 +59,6 @@ def detect_language(text):
         return "hinglish"
 
     return "en"
-
-
-def reply_text(lang, en, hi, hinglish):
-    if lang == "en":
-        return en
-    else:
-        return hi
-
 
 def detect_intent(msg):
     msg = msg.lower()
@@ -79,13 +92,10 @@ def detect_intent(msg):
     return "unknown"
 
 
-def ask_ai(text, lang):
+def ask_ai(text_en):
     try:
-        if lang == "en":
-            prompt = f"Reply ONLY in English in 1 short line: {text}"
-        else:
-            prompt = f"Reply ONLY in Hindi in 1 short line: {text}"
-
+        prompt = f"Reply in simple English in one short line: {text_en}"
+       
         res = requests.post(
             "http://localhost:11434/api/generate",
             json={
@@ -110,18 +120,29 @@ def ask_ai(text, lang):
 
 def process_message(user_id, text):
 
-    text_lower = text.lower()
+    original_text_lower = text.lower()
+    
     lang = detect_language(text)
+    if lang=="hinglish":
+        lang = "hi"
+        
+    elif lang not in ["en", "hi"]:
+        lang = safe_detect(text)
+
+    if lang=="en":
+        text_en = text
+    else:
+        text_en = translate_to_en(text)
+        
+    text_lower = text_en.lower()
 
     if text_lower in ["hi", "hello", "hey", "namaste", "namaskar"]:
-        return reply_text(
-            lang,
-            "Hi, how can I help you today?",
-            "नमस्ते, मैं आपकी कैसे मदद कर सकता हूँ?",
-            "Namaste, main aapki kaise madad kar sakta hoon?",
-        )
+        response_en = "Hi, how can I help you today?"
+        if lang =="hi":
+            return translate_back(response_en, "hi")
+        return response_en
 
-    intent = detect_intent(text)
+    intent = detect_intent(text_en)
 
     if user_id not in conversation_state:
         flow_val = None
@@ -131,12 +152,10 @@ def process_message(user_id, text):
     # ✅ PAYMENT FIX
     if intent == "payment":
         db.create_ticket("payment issue", "payment")
-        return reply_text(
-            lang,
-            "I’m connecting you to a human agent.",
-            "मैं आपको एक मानव एजेंट से जोड़ रहा हूँ।",
-            "Main aapko human agent se connect kar raha hoon.",
-        )
+        response_en = " I'm sorry to hear that you're facing a payment issue ,i'm connecting you to a human agent who can assist you further."
+        if lang=="en":
+            return response_en
+        return translate_back(response_en, lang)
 
     if user_id not in conversation_state:
         conversation_state[user_id] = {"flow": None, "step": 0, "data": {}}
@@ -160,83 +179,69 @@ def process_message(user_id, text):
         if step == 0:
             state["data"]["issue"] = text
             state["step"] += 1
-            return reply_text(
-                lang,
-                "Please share your registered mobile number.",
-                "कृपया अपना मोबाइल नंबर बताएं।",
-                "Please apna mobile number bataiye.",
-            )
+
+            response_en="Please share your registered mobile number."
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 1:
             state["step"] += 1
-            return reply_text(
-                lang,
-                "May I know your name?",
-                "कृपया अपना नाम बताएं।",
-                "Aapka naam kya hai?",
-            )
+
+            response_en = "May I know your name?"
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 2:
             state["step"] += 1
             issue = state["data"]["issue"].lower()
 
             if "order" in issue or "delivery" in issue:
-                return reply_text(
-                    lang,
-                    "Please share your order ID.",
-                    "कृपया अपना ऑर्डर आईडी बताएं।",
-                    "Apna order ID bataiye.",
-                )
 
-            return reply_text(
-                lang,
-                "Which provider or plan are you using?",
-                "आप कौन सा प्लान या प्रोवाइडर उपयोग कर रहे हैं?",
-                "Kaunsa provider ya plan use kar rahe ho?",
-            )
+                response_en = "Please share your order ID."
+                if lang=="en":
+                    return response_en
+                return translate_back(response_en, lang)
+
+            response_en = "Which provider or plan are you using?"
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 3:
             state["step"] += 1
             issue = state["data"]["issue"].lower()
 
             if "wifi" in issue or "internet" in issue:
-                return reply_text(
-                    lang,
-                    "Please restart your router and check lights.",
-                    "कृपया अपना राउटर रीस्टार्ट करें और लाइट्स चेक करें।",
-                    "Router restart karke lights check karo.",
-                )
+                response_en = "Please restart your router and check lights."
+                if lang=="en":
+                    return response_en
+                return translate_back(response_en, lang)
 
-            return reply_text(
-                lang,
-                "We are checking your issue.",
-                "हम आपकी समस्या की जांच कर रहे हैं।",
-                "Hum aapka issue check kar rahe hain.",
-            )
-
+            response_en = "We are checking your issue."
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
+        
         elif step == 4:
             state["step"] += 1
-            return reply_text(
-                lang,
-                "Is your issue resolved?",
-                "क्या आपकी समस्या हल हो गई?",
-                "Kya aapka issue solve ho gaya?",
-            )
+            response_en = "Is your issue resolved?"
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 5:
 
             issue = state["data"]["issue"].lower()
 
             if any(
-                x in text_lower for x in ["yes", "haan", "ho gaya", "resolved", "theek"]
+                x in text_lower for x in ["yes", "haan", "ho gaya", "resolved", "theek","done","fixed","okay"]
             ):
                 conversation_state[user_id] = {"flow": None, "step": 0, "data": {}}
-                return reply_text(
-                    lang,
-                    "Glad your issue is resolved!",
-                    "अच्छा है कि आपकी समस्या हल हो गई!",
-                    "Achha hai aapka issue solve ho gaya!",
-                )
+                
+                response_en = "Glad your issue is resolved!"
+                return translate_back(response_en, lang)
 
             elif any(x in text_lower for x in ["no", "nahi", "abhi bhi", "not yet"]):
                 try:
@@ -244,16 +249,12 @@ def process_message(user_id, text):
 
                     conversation_state[user_id] = {"flow": None, "step": 0, "data": {}}
 
-                    return {
-                        "reply": reply_text(
-                            lang,
-                            f"Our technician will visit within 24 hours. Ticket ID: {ticket}",
-                            f"हमारा तकनीशियन 24 घंटे में आएगा। टिकट आईडी: {ticket}",
-                            f"Technician 24 hours me aayega. Ticket ID: {ticket}",
-                        ),
+                    response_en =f"Our technician will visit within 24 hours. Ticket ID: {ticket}"
+                    return{
+                        "reply": translate_back(response_en, lang),
                         "call": True,
                         "call_type": "complaint",
-                        "flow": "complaint",
+                        "flow": "complaint"
                     }
 
                 except Exception as e:
@@ -265,109 +266,100 @@ def process_message(user_id, text):
 
         if step == 0:
             state["step"] += 1
-            return reply_text(
-                lang,
-                "What service do you want?",
-                "आप कौन सी सेवा चाहते हैं?",
-                "Kaunsi service chahiye?",
-            )
-
+            
+            response_en ="What service do you want?"
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
+        
         elif step == 1:
             state["step"] += 1
-            return reply_text(lang, "Select date.", "तारीख चुनें।", "Date select karo.")
+            response_en = "Select date."
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 2:
             state["step"] += 1
-            return reply_text(lang, "Select time.", "समय चुनें।", "Time select karo.")
+            response_en = "Select time."
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 3:
 
             conversation_state[user_id] = {"flow": None, "step": 0, "data": {}}
-
-            return {
-                "reply": reply_text(
-                    lang,
-                    "Your appointment is confirmed.",
-                    "आपकी अपॉइंटमेंट कन्फर्म हो गई है।",
-                    "Appointment confirm ho gaya.",
-                ),
+        
+            response_en = "Your appointment is confirmed."
+            return{
+                "reply": translate_back(response_en, lang),
                 "call": True,
                 "call_type": "appointment",
-                "flow": "appointment",
+                "flow": "appointment"
             }
 
     # 📊 SURVEY (NO CALL)
     elif flow == "survey":
         if step == 0:
             state["step"] += 1
-            return reply_text(
-                lang,
-                "Rate our service from 1 to 5.",
-                "कृपया हमारी सेवा को 1 से 5 तक रेट करें।",
-                "Service ko 1 se 5 tak rate karo.",
-            )
+            response_en ="Rate our service from 1 to 5."
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
+        
         elif step == 1:
             state["step"] += 1
-            return reply_text(
-                lang, "Any suggestions?", "कोई सुझाव?", "Koi suggestion hai?"
-            )
+            response_en = "Thank you for your feedback! Any suggestions?"
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
+        
         elif step == 2:
             conversation_state[user_id] = {"flow": None, "step": 0, "data": {}}
-            return reply_text(
-                lang,
-                "Thank you for your feedback!",
-                "आपके फीडबैक के लिए धन्यवाद!",
-                "Feedback ke liye thanks!",
-            )
+            response_en = "Thank you for your feedback!"
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
     # 💼 LEAD
     elif flow == "lead":
 
         if step == 0:
             state["step"] += 1
-            return reply_text(
-                lang,
-                "May I know your name?",
-                "कृपया अपना नाम बताएं।",
-                "Aapka naam kya hai?",
-            )
+            response_en = "May I know your name?"
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 1:
             state["step"] += 1
-            return reply_text(
-                lang,
-                "Please share your contact number.",
-                "कृपया अपना संपर्क नंबर बताएं।",
-                "Apna contact number bataiye.",
-            )
+            response_en = "Please share your contact number."
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 2:
             state["step"] += 1
-            return reply_text(
-                lang,
-                "What are you looking for?",
-                "आप क्या ढूंढ रहे हैं?",
-                "Kya chahiye aapko?",
-            )
+            response_en = "What are you looking for?"
+            if lang=="en":
+                return response_en
+            return translate_back(response_en, lang)
 
         elif step == 3:
             db.create_ticket("lead generated", "lead")
-
             conversation_state[user_id] = {"flow": None, "step": 0, "data": {}}
-
-            return {
-                "reply": reply_text(
-                    lang,
-                    "Our team will contact you soon.",
-                    "हमारी टीम आपसे जल्द संपर्क करेगी।",
-                    "Team jaldi contact karegi.",
-                ),
-                "call": True,
+            response_en = "Thank you for your interest! Our sales team will contact you soon."
+            return{
+                "reply": translate_back(response_en , lang),
+                "call":True,
                 "call_type": "lead",
                 "flow": "lead",
             }
 
-    return ask_ai(text, lang)
+    response_en = ask_ai(text_en)
+    if lang=="en":
+        return response_en
+    return translate_back(response_en, lang)
 
 
 @app.route("/")
@@ -386,10 +378,13 @@ def dashboard():
         flow = row[2]
 
         if user not in grouped:
-            grouped[user] = {"flow": flow, "messages": []}
-        if flow is not None:
+            grouped[user] = {}
+        if "messages" not in grouped[user]: 
+            grouped[user]["messages"] = []
+        grouped [user]["user"] = user
+        if flow:
             grouped[user]["flow"] = flow
-
+            
         grouped[user]["messages"].append(message)
 
     data["grouped_conversations"] = list(grouped.values())
@@ -399,14 +394,10 @@ def dashboard():
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json
-    message = data["message"].lower()
+    message = data["message"]
 
     # ✅ Fix indentation + logic
-    if (
-        "user_id" not in session
-        or message in ["hi", "hello", "start"]
-        or conversation_state.get(session.get("user_id"), {}).get("flow") is None
-    ):
+    if "user_id" not in session:
         session["user_id"] = "user_" + str(random.randint(1000, 9999))
 
     user_id = session["user_id"]
