@@ -119,6 +119,7 @@ class Database:
             """
         SELECT intent, COUNT(*) 
         FROM conversations 
+        WHERE intent NOT IN ('bot','unknown')
         GROUP BY intent
         """
         )
@@ -129,8 +130,7 @@ class Database:
             """
         SELECT user_id, user_text, flow
         FROM conversations
-        ORDER BY id DESC
-        LIMIT 50
+        ORDER BY user_id,id ASC
         """
         )
         rows = cur.fetchall()
